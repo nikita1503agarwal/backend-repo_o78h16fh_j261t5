@@ -1,48 +1,80 @@
 """
-Database Schemas
+Database Schemas for EcoHero+
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
+Each Pydantic model represents a MongoDB collection. The collection name is the
+lowercased class name. For example: User -> "user" collection.
 
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+These schemas are used for validating data before inserting into the database.
 """
+from typing import Optional, Literal, List
+from pydantic import BaseModel, Field, EmailStr
 
-from pydantic import BaseModel, Field
-from typing import Optional
-
-# Example schemas (replace with your own):
 
 class User(BaseModel):
     """
     Users collection schema
-    Collection name: "user" (lowercase of class name)
+    Collection: "user"
     """
     name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+    age: int = Field(..., ge=0, le=120, description="Age in years")
+    email: Optional[EmailStr] = Field(None, description="User email (optional for kids)")
+    parent_email: Optional[EmailStr] = Field(
+        None, description="Parent/guardian email for under-18 accounts"
+    )
+    is_parent_approved: bool = Field(
+        False, description="Whether a parent has approved the account"
+    )
 
-class Product(BaseModel):
+
+class Challenge(BaseModel):
     """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
+    Eco challenges users can complete
+    Collection: "challenge"
     """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+    title: str = Field(..., description="Challenge title")
+    description: str = Field(..., description="What to do")
+    audience: Literal["kid", "adult", "all"] = Field(
+        "all", description="Primary audience"
+    )
+    points: int = Field(..., ge=10, le=5000, description="Points awarded on completion")
+    is_active: bool = Field(True, description="Whether challenge is available")
 
-# Add your own schemas here:
-# --------------------------------------------------
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class Submission(BaseModel):
+    """
+    Proof submissions for completed challenges
+    Collection: "submission"
+    """
+    user_id: str = Field(..., description="User id (string)")
+    challenge_id: str = Field(..., description="Challenge id (string)")
+    proof_url: Optional[str] = Field(
+        None, description="URL to photo/video proof (optional for MVP)"
+    )
+    notes: Optional[str] = Field(None, description="Short note from the user")
+    points_awarded: int = Field(..., ge=0, description="Points awarded for this submission")
+    status: Literal["approved", "pending", "rejected"] = Field(
+        "approved", description="Moderation status"
+    )
+
+
+class WalletTransaction(BaseModel):
+    """
+    Wallet transactions for redemptions and adjustments
+    Collection: "wallettransaction"
+    """
+    user_id: str = Field(..., description="User id (string)")
+    type: Literal["redeem", "adjustment"] = Field(..., description="Transaction type")
+    points: int = Field(..., ge=1, description="Points deducted (positive number)")
+    note: Optional[str] = Field(None, description="Optional description")
+
+
+# Optional helper for badges (future):
+class Badge(BaseModel):
+    """
+    Earned badges
+    Collection: "badge"
+    """
+    user_id: str
+    name: str
+    icon: Optional[str] = None
+    description: Optional[str] = None
